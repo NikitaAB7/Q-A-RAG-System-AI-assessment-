@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "question": "What is the maximum exposure limit of a mutual fund scheme to equity derivatives as per SEBI regulations?"
+  },
+  {
+    "id": 2,
+    "question": "Are index options considered part of the derivatives exposure limit or treated separately?"
+  },
+  {
+    "id": 3,
+    "question": "What is the definition of \"covered call\" under SEBI Mutual Fund Regulations?"
+  },
+  {
+    "id": 4,
+    "question": "Is a Small Cap Fund allowed to invest in derivatives? If yes, under what conditions?"
+  },
+  {
+    "id": 5,
+    "question": "What is the maximum net open position allowed in derivatives for a mutual fund scheme?"
+  },
+  {
+    "id": 6,
+    "question": "Are OTC derivatives permitted for mutual funds? If yes, for what purposes?"
+  },
+  {
+    "id": 7,
+    "question": "What disclosures are required in the SID regarding derivative usage?"
+  },
+  {
+    "id": 8,
+    "question": "Can a mutual fund scheme take short positions in options? What is the regulatory basis?"
+  },
+  {
+    "id": 9,
+    "question": "What are the risk management disclosures required when a scheme uses derivatives?"
+  },
+  {
+    "id": 10,
+    "question": "What is the definition of \"hedging\" under SEBI MF regulations?"
+  },
+  {
+    "id": 11,
+    "question": "In a Small Cap Fund, is writing call options permitted if the underlying stock is not held in the portfolio? Cite the relevant regulation."
+  },
+  {
+    "id": 12,
+    "question": "Can a mutual fund scheme write naked call options? If not, what are the constraints?"
+  },
+  {
+    "id": 13,
+    "question": "How does SEBI define speculative derivative positions versus hedging positions?"
+  },
+  {
+    "id": 14,
+    "question": "Is option premium received from writing calls considered part of gross exposure or net exposure?"
+  },
+  {
+    "id": 15,
+    "question": "Can a fund write options on stocks that are not part of the benchmark index?"
+  },
+  {
+    "id": 16,
+    "question": "What are the conditions under which covered call strategies are permitted, and which schemes are eligible?"
+  },
+  {
+    "id": 17,
+    "question": "Are margin requirements for derivatives included while calculating scheme exposure limits?"
+  },
+  {
+    "id": 18,
+    "question": "What approvals are required internally before initiating a derivative strategy in a mutual fund scheme?"
+  },
+  {
+    "id": 19,
+    "question": "How should derivative positions be treated for risk-o-meter classification?"
+  },
+  {
+    "id": 20,
+    "question": "What are the audit and reporting requirements for derivative trades executed by a fund manager?"
+  }
+]

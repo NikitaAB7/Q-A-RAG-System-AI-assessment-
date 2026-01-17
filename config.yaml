@@ -1,0 +1,91 @@
+# config.yaml
+
+# Document Processing
+documents:
+  path: "./docs"
+  formats:
+    - pdf
+  recursive: true
+
+# Chunking Strategy
+chunking:
+  strategy: "semantic+size"        # Options: semantic+size, fixed, recursive
+  target_size: 600                 # Target tokens per chunk
+  min_chunk_size: 150              # Minimum tokens per chunk
+  overlap_tokens: 100              # Overlap between chunks
+  
+  # Semantic chunking
+  split_by_headers: true
+  header_patterns:
+    - "Regulation \\d+"
+    - "Section \\d+"
+    - "\\d+\\.\\d+\\.\\d+"
+    - "^[A-Z][A-Z\\s]+:"
+
+# Embeddings
+embeddings:
+  model: "all-mpnet-base-v2"        # Sentence-transformer model
+  device: "cuda"                     # cuda, cpu, mps
+  batch_size: 32
+  dimension: 768                     # Output dimension
+
+# Vector Database
+vector_db:
+  type: "chromadb"                  # chromadb, weaviate, milvus
+  path: "./chromadb"
+  collection_name: "compliance_docs"
+  similarity_metric: "cosine"        # cosine, euclidean, dot
+
+# Retrieval
+retrieval:
+  top_k: 5                          # Number of chunks to retrieve
+  score_threshold: 0.3               # Minimum similarity score
+  method: "dense"                    # dense, sparse, hybrid
+  
+  # Hybrid search (if enabled)
+  bm25_weight: 0.5
+  dense_weight: 0.5
+
+# Generation
+generation:
+  llm_backend: "gemini"             # gemini, ollama, groq, openai
+  
+  # Gemini settings
+  gemini:
+    model: "gemini-2.0-flash"       # gemini-2.0-flash, gemini-2.0-pro, gemini-pro
+    max_tokens: 1500
+    temperature: 0.2                # Low = factual, high = creative
+    top_p: 0.9
+    top_k: 40
+  
+  # Ollama settings
+  ollama:
+    model: "mistral"                # mistral, llama2, llama3, neural-chat, phi
+    host: "http://localhost:11434"
+    max_tokens: 1500
+    temperature: 0.2
+  
+  # Groq settings
+  groq:
+    model: "mixtral-8x7b-32768"     # mixtral-8x7b-32768, llama-2-70b-chat
+    max_tokens: 1500
+    temperature: 0.2
+
+# Evaluation
+evaluation:
+  test_questions_file: "./questions.json"
+  output_file: "./output/answers.json"
+  
+  metrics:
+    - retrieval_recall
+    - faithfulness
+    - citation_accuracy
+  
+  # LLM-as-judge settings
+  judge_model: "gemini-2.0-flash"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./output/logs/app.log"

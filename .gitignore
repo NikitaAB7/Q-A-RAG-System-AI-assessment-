@@ -1,0 +1,146 @@
+# .gitignore - QA-RAG System
+
+# ========== ENVIRONMENT & SECRETS ==========
+.env
+.env.local
+.env.*.local
+.env.example
+secrets/
+credentials/
+
+# ========== PYTHON ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ========== VIRTUAL ENVIRONMENTS ==========
+venv/
+ENV/
+env/
+.venv
+virtualenv/
+
+# ========== IDE & EDITORS ==========
+.vscode/
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.iml
+.gradle
+
+# ========== VECTOR DATABASE & LOCAL STORAGE ==========
+chromadb/
+*.db
+*.sqlite
+*.sqlite3
+vectordb/
+*.parquet
+
+# ========== LLM MODELS & EMBEDDINGS ==========
+# Large model files - download locally, don't commit
+models/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+huggingface_cache/
+.cache/
+
+# ========== OUTPUT FILES (regenerated on each run) ==========
+output/
+results/
+logs/
+*.log
+evaluation_results.json
+answers.json
+evaluation_output/
+query_results.json
+
+# ========== JUPYTER NOTEBOOKS ==========
+.ipynb_checkpoints/
+*.ipynb
+.jupyter/
+
+# ========== TESTING ==========
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+junit.xml
+
+# ========== OS SPECIFIC ==========
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.pid
+
+# ========== TEMPORARY FILES ==========
+*.tmp
+*.temp
+temp/
+tmp/
+.tmp/
+*.cache
+cache/
+*.lock
+
+# ========== DATA FILES (optional) ==========
+# Uncomment if you have large data directories:
+# data/
+# datasets/
+# raw_data/
+
+# ========== NODE (if using any tools) ==========
+node_modules/
+package-lock.json
+
+# ========== COMPRESSED FILES ==========
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ========== KEEP IMPORTANT FILES ==========
+!.gitkeep
+!questions.json
+!config.yaml
+!README.md
+!README_SYSTEM.md
+!EVALUATION.md
+!requirements.txt
+!.env.example
+!.gitignore
+!src/
+!docs/
