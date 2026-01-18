@@ -33,7 +33,7 @@ class GroundedAnswerGenerator:
     def generate_answer(self, 
                        query: str, 
                        retrieved_context: Dict,
-                       max_tokens: int = 1500) -> Dict:
+                       max_tokens: int = 800) -> Dict:
         """Generate grounded answer using Mistral via Ollama."""
         
         chunks = retrieved_context['chunks']
@@ -80,7 +80,7 @@ Answer using only the documents with citations."""
                     "top_k": 40,
                     "num_predict": max_tokens
                 },
-                timeout=120  # Increased timeout for longer responses
+                timeout=300  # Increased timeout for longer responses
             )
             response.raise_for_status()
             

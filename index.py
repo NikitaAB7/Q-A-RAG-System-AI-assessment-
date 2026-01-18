@@ -4,9 +4,10 @@ import yaml
 import logging
 from pathlib import Path
 from src.indexing.loader import load_documents
-from src.indexing.chunking import chunk_by_semantics
+from src.indexing.advanced_chunker import AdvancedChunker
 from src.indexing.embeddings import EmbeddingManager
 from src.retrieval.vector_db import VectorDB
+from src.retrieval.bm25_index import BM25IndexManager
 
 # Setup logging
 logging.basicConfig(
@@ -31,9 +32,12 @@ def main():
     logger.info(f"Loaded {len(documents)} pages from documents")
     
     # Step 2: Chunk documents
-    logger.info("\n[2/4] Chunking documents...")
-    chunks = chunk_by_semantics(documents, target_size=600, overlap_tokens=100)
+    logger.info("\n[2/4] Chunking documents (advanced)...")
+    chunker = AdvancedChunker(target_size=400, min_chunk_size=150, overlap_tokens=80)
+    chunks = chunker.chunk_documents(documents)
+    stats = chunker.calculate_statistics(chunks)
     logger.info(f"Created {len(chunks)} chunks")
+    logger.info(f"Average chunk size: {stats['avg_chunk_size']:.0f} tokens")
     
     # Step 3: Initialize embeddings and vector DB
     logger.info("\n[3/4] Initializing embeddings model...")
@@ -46,6 +50,10 @@ def main():
     # Step 4: Embed and index
     logger.info("\n[4/4] Embedding and indexing chunks...")
     vector_db.add_documents(chunks, embeddings_manager)
+
+    logger.info("\n[4.5/4] Building BM25 index...")
+    bm25_manager = BM25IndexManager()
+    bm25_manager.build_index(chunks)
     
     logger.info("\n" + "="*80)
     logger.info("INDEXING COMPLETE!")

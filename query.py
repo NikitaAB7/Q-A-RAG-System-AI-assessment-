@@ -26,7 +26,14 @@ def query_rag(question: str):
     
     # Retrieve relevant chunks
     print("\n[2/3] Retrieving relevant context...")
-    retrieved = retriever.retrieve_with_confidence(question, top_k=5, score_threshold=0.3)
+    retrieved = retriever.retrieve_with_reranking(
+        question,
+        top_k=5,
+        dense_weight=0.6,
+        sparse_weight=0.4,
+        score_threshold=0.1,
+        rerank_top_k=50
+    )
     
     print(f"Retrieved {len(retrieved['chunks'])} chunks")
     print(f"Confidence: {retrieved['confidence']}")
@@ -34,12 +41,18 @@ def query_rag(question: str):
     if retrieved['chunks']:
         print("\nTop 3 chunks:")
         for i, chunk in enumerate(retrieved['chunks'][:3], 1):
-            print(f"  {i}. [{chunk['doc_name']}, Page {chunk['page']}] Score: {chunk['score']:.3f}")
+            section = chunk.get('section', '')
+            subsection = chunk.get('subsection', '')
+            location = section or 'N/A'
+            if subsection:
+                location = f"{location} → {subsection}"
+            score = chunk.get('rerank_score', chunk.get('hybrid_score', chunk.get('score', 0)))
+            print(f"  {i}. [{chunk['doc_name']}, Page {chunk['page']}, {location}] Score: {score:.3f}")
             print(f"     {chunk['text'][:150]}...")
     
     # Generate answer
     print("\n[3/3] Generating answer...")
-    result = generator.generate_answer(question, retrieved)
+    result = generator.generate_answer(question, retrieved, max_tokens=600)
     
     # Display results
     print("\n" + "="*80)

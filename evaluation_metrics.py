@@ -185,7 +185,7 @@ Respond ONLY with the rating (1-5) and a brief reason."""
             
             # RETRIEVAL
             start = time.time()
-            retrieved = self.retriever.retrieve_with_confidence(question, top_k=5)
+            retrieved = self.retriever.retrieve_with_confidence(question, top_k=5, score_threshold=0.1)  # LOWERED from 0.3
             retrieval_time = time.time() - start
             
             retrieved_chunks = retrieved.get('chunks', [])

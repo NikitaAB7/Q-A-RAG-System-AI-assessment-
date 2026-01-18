@@ -39,7 +39,9 @@ class VectorDB:
                 'doc_name': chunk['doc_name'],
                 'page': str(chunk['page']),
                 'chunk_id': str(chunk['chunk_id']),
-                'source': chunk['source']
+                'source': chunk['source'],
+                'section': chunk.get('section', ''),
+                'subsection': chunk.get('subsection', '')
             }
             for chunk in chunks
         ]
@@ -79,7 +81,9 @@ class VectorDB:
                 'page': int(metadata['page']),
                 'text': text,
                 'score': round(similarity_score, 3),
-                'source': metadata['source']
+                'source': metadata['source'],
+                'section': metadata.get('section', ''),
+                'subsection': metadata.get('subsection', '')
             })
         
         return retrieved
