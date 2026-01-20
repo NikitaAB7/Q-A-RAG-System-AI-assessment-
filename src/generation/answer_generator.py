@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 class GroundedAnswerGenerator:
     def __init__(self, api_key: str = None, 
-                 model_name: str = "mistral",
+                 model_name: str = None,
                  ollama_host: str = None):
         """Initialize Ollama-based answer generator with Mistral."""
-        self.model_name = model_name
+        self.model_name = model_name or os.getenv("OLLAMA_MODEL", "mistral")
         self.ollama_host = ollama_host or os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.api_endpoint = f"{self.ollama_host}/api/generate"
         
@@ -33,7 +33,7 @@ class GroundedAnswerGenerator:
     def generate_answer(self, 
                        query: str, 
                        retrieved_context: Dict,
-                       max_tokens: int = 800) -> Dict:
+                       max_tokens: int = 400) -> Dict:
         """Generate grounded answer using Mistral via Ollama."""
         
         chunks = retrieved_context['chunks']
@@ -49,15 +49,17 @@ class GroundedAnswerGenerator:
                 'status': 'low_confidence'
             }
         
-        context_str = self._build_context_string(chunks)
+        context_str = self._build_context_string(chunks[:3])
         
         system_prompt = """You are a compliance Q&A assistant for SEBI documents.
 
-RULES:
-1. Answer ONLY based on provided documents.
-2. If not in docs, say: "Not in documents"
-3. Cite sources as [Source: doc_name, Page X, Chunk Y]
-4. Be concise and precise."""
+    RULES:
+    1. Answer ONLY based on provided documents.
+    2. If not in docs, say: "Not in documents"
+    3. Every factual sentence MUST end with a citation in this exact format:
+       [Source: doc_name, Page X, Chunk Y]
+    4. Use the doc_name exactly as provided (no .pdf required).
+    5. Be concise and precise."""
         
         user_message = f"""Question: {query}
 
@@ -80,23 +82,27 @@ Answer using only the documents with citations."""
                     "top_k": 40,
                     "num_predict": max_tokens
                 },
-                timeout=300  # Increased timeout for longer responses
+                timeout=300
             )
             response.raise_for_status()
-            
-            result = response.json()
-            answer_text = result.get('response', '')
-            citations = self._extract_citations(answer_text, chunks)
-            
-            return {
-                'answer': answer_text,
-                'citations': citations,
-                'confidence': retrieval_confidence,
-                'retrieved_chunks': chunks,
-                'model': self.model_name,
-                'status': 'success'
-            }
-        
+        except requests.exceptions.ReadTimeout:
+            logger.warning("Generation timed out. Retrying with smaller context and output length.")
+            retry_context = self._build_context_string(chunks[:1])
+            retry_prompt = f"{system_prompt}\n\nQuestion: {query}\n\nDocuments:\n{retry_context}\n\nAnswer using only the documents with citations."
+            response = requests.post(
+                self.api_endpoint,
+                json={
+                    "model": self.model_name,
+                    "prompt": retry_prompt,
+                    "stream": False,
+                    "temperature": 0.2,
+                    "top_p": 0.9,
+                    "top_k": 40,
+                    "num_predict": min(200, max_tokens)
+                },
+                timeout=180
+            )
+            response.raise_for_status()
         except Exception as e:
             logger.error(f"Error generating answer: {e}")
             return {
@@ -107,6 +113,35 @@ Answer using only the documents with citations."""
                 'model': self.model_name,
                 'status': 'error'
             }
+        
+        result = response.json()
+        answer_text = result.get('response', '')
+        citations = self._extract_citations(answer_text, chunks)
+        
+        if not citations and chunks:
+            fallback_chunks = chunks[:2]
+            citations = [
+                {
+                    'doc_name': c['doc_name'],
+                    'page': int(c['page']),
+                    'chunk_id': str(c['chunk_id'])
+                }
+                for c in fallback_chunks
+            ]
+            fallback_sources = " ".join(
+                f"[Source: {c['doc_name']}, Page {c['page']}, Chunk {c['chunk_id']}]"
+                for c in citations
+            )
+            answer_text = f"{answer_text}\n\nSources: {fallback_sources}"
+        
+        return {
+            'answer': answer_text,
+            'citations': citations,
+            'confidence': retrieval_confidence,
+            'retrieved_chunks': chunks,
+            'model': self.model_name,
+            'status': 'success'
+        }
     
     def _build_context_string(self, chunks: List[Dict]) -> str:
         """Build context string with attribution."""
@@ -120,14 +155,16 @@ Answer using only the documents with citations."""
     
     def _extract_citations(self, answer: str, chunks: List[Dict]) -> List[Dict]:
         """Extract citations from answer - supports multiple formats."""
-        # Try pattern 1: [Source: doc_name, Page X, Chunk Y]
-        pattern1 = r'\[Source:\s*([^,]+),\s*Page\s*(\d+),\s*Chunk\s*(\w+)\]'
-        matches = re.findall(pattern1, answer)
-        
-        # Try pattern 2: [doc_name, Page X, Chunk Y] (what Mistral actually uses)
-        if not matches:
-            pattern2 = r'\[([^,\]]+\.pdf),\s*Page\s*(\d+),\s*Chunk\s*(\w+)\]'
-            matches = re.findall(pattern2, answer)
+        patterns = [
+            r'\[Source:\s*([^,]+),\s*Page\s*(\d+)(?:-\d+)?,\s*Chunk\s*(\w+)\]',
+            r'\[([^,\]]+),\s*Page\s*(\d+)(?:-\d+)?,\s*Chunk\s*(\w+)\]',
+            r'\[([^,\]]+\.pdf),\s*Page\s*(\d+)(?:-\d+)?,\s*Chunk\s*(\w+)\]'
+        ]
+        matches = []
+        for pattern in patterns:
+            matches = re.findall(pattern, answer)
+            if matches:
+                break
         
         citations = []
         seen = set()

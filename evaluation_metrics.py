@@ -185,14 +185,21 @@ Respond ONLY with the rating (1-5) and a brief reason."""
             
             # RETRIEVAL
             start = time.time()
-            retrieved = self.retriever.retrieve_with_confidence(question, top_k=5, score_threshold=0.1)  # LOWERED from 0.3
+            retrieved = self.retriever.retrieve_with_reranking(
+                question,
+                top_k=3,
+                dense_weight=0.6,
+                sparse_weight=0.4,
+                score_threshold=0.1,
+                rerank_top_k=20
+            )
             retrieval_time = time.time() - start
             
             retrieved_chunks = retrieved.get('chunks', [])
             
             # GENERATION
             start = time.time()
-            gen_result = self.generator.generate_answer(question, retrieved)
+            gen_result = self.generator.generate_answer(question, retrieved, max_tokens=300)
             generation_time = time.time() - start
             
             answer = gen_result['answer']
@@ -206,7 +213,7 @@ Respond ONLY with the rating (1-5) and a brief reason."""
             )
             
             # METRIC 2: Faithfulness (LLM-as-judge)
-            context_str = "\n".join([f"- {c['text'][:200]}" for c in retrieved_chunks])
+            context_str = "\n".join([f"- {c['text'][:200]}" for c in retrieved_chunks[:3]])
             faithfulness = self.evaluate_faithfulness(question, answer, context_str)
             
             # METRIC 3: Citation Correctness

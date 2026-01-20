@@ -52,7 +52,7 @@ def query_rag(question: str):
     
     # Generate answer
     print("\n[3/3] Generating answer...")
-    result = generator.generate_answer(question, retrieved, max_tokens=600)
+    result = generator.generate_answer(question, retrieved, max_tokens=300)
     
     # Display results
     print("\n" + "="*80)

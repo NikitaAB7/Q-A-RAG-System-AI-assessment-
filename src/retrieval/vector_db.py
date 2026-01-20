@@ -30,10 +30,28 @@ class VectorDB:
     
     def add_documents(self, chunks: List[Dict], embeddings_manager) -> None:
         """Index chunks into vector DB."""
-        texts = [chunk['text'] for chunk in chunks]
+        ids = [f"chunk_{chunk['chunk_id']}" for chunk in chunks]
+        
+        existing_ids = set()
+        try:
+            existing = self.collection.get(ids=ids, include=[])
+            existing_ids = set(existing.get('ids', []))
+        except Exception:
+            existing_ids = set()
+        
+        new_chunks = [
+            chunk for chunk, cid in zip(chunks, ids)
+            if cid not in existing_ids
+        ]
+        
+        if not new_chunks:
+            logger.info("✅ All chunks already indexed. Skipping add.")
+            return
+        
+        texts = [chunk['text'] for chunk in new_chunks]
         embeddings = embeddings_manager.embed_batch(texts)
         
-        ids = [f"chunk_{chunk['chunk_id']}" for chunk in chunks]
+        ids = [f"chunk_{chunk['chunk_id']}" for chunk in new_chunks]
         metadatas = [
             {
                 'doc_name': chunk['doc_name'],
@@ -43,7 +61,7 @@ class VectorDB:
                 'section': chunk.get('section', ''),
                 'subsection': chunk.get('subsection', '')
             }
-            for chunk in chunks
+            for chunk in new_chunks
         ]
         
         self.collection.add(
@@ -53,7 +71,7 @@ class VectorDB:
             metadatas=metadatas
         )
         
-        logger.info(f"✅ Indexed {len(chunks)} chunks")
+        logger.info(f"✅ Indexed {len(new_chunks)} chunks")
     
     def retrieve(self, query: str, embeddings_manager, 
                  top_k: int = 5) -> List[Dict]:
