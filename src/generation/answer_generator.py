@@ -15,7 +15,7 @@ class GroundedAnswerGenerator:
     def __init__(self, api_key: str = None, 
                  model_name: str = None,
                  ollama_host: str = None):
-        """Initialize Ollama-based answer generator with Mistral."""
+        """Initialize Ollama-based answer generator with self-reflection capabilities."""
         self.model_name = model_name or os.getenv("OLLAMA_MODEL", "mistral")
         self.ollama_host = ollama_host or os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.api_endpoint = f"{self.ollama_host}/api/generate"
@@ -26,7 +26,7 @@ class GroundedAnswerGenerator:
                 f"{self.ollama_host}/api/tags",
                 timeout=5
             )
-            logger.info(f"✅ Initialized Ollama with model: {model_name}")
+            logger.info(f"✅ Initialized Ollama with model: {self.model_name}")
         except Exception as e:
             raise ValueError(f"Cannot connect to Ollama at {self.ollama_host}. Make sure Ollama is running. Error: {e}")
     
@@ -53,13 +53,19 @@ class GroundedAnswerGenerator:
         
         system_prompt = """You are a compliance Q&A assistant for SEBI documents.
 
-    RULES:
-    1. Answer ONLY based on provided documents.
-    2. If not in docs, say: "Not in documents"
-    3. Every factual sentence MUST end with a citation in this exact format:
-       [Source: doc_name, Page X, Chunk Y]
-    4. Use the doc_name exactly as provided (no .pdf required).
-    5. Be concise and precise."""
+STRICT GROUNDING RULES:
+1. ONLY use information EXPLICITLY stated in the provided documents.
+2. DO NOT use external knowledge, general facts, or assumptions.
+3. If the answer is not in the documents, respond EXACTLY: "Not in documents"
+4. QUOTE or closely paraphrase the documents - do not infer or extrapolate.
+5. Every factual sentence MUST end with a citation: [Source: doc_name, Page X, Chunk Y]
+6. Use doc_name exactly as provided (no .pdf extension).
+7. Keep answers concise (2-3 sentences maximum).
+
+FORBIDDEN:
+- Making up facts or using general knowledge
+- Saying "I'm sorry, I am an AI language model..."
+- Providing advice not explicitly in documents"""
         
         user_message = f"""Question: {query}
 
@@ -116,7 +122,14 @@ Answer using only the documents with citations."""
         
         result = response.json()
         answer_text = result.get('response', '')
-        citations = self._extract_citations(answer_text, chunks)
+        
+        # HALLUCINATION GUARDRAIL: Verify answer is grounded
+        if not self._verify_answer_grounded(answer_text, chunks):
+            logger.warning("Hallucination detected - answer not grounded in chunks")
+            answer_text = "Not in documents (generated answer appears to contain information not present in retrieved context)"
+            citations = []
+        else:
+            citations = self._extract_citations(answer_text, chunks)
         
         if not citations and chunks:
             fallback_chunks = chunks[:2]
@@ -180,6 +193,51 @@ Answer using only the documents with citations."""
                 seen.add(key)
         
         return citations
+    
+    def _verify_answer_grounded(self, answer: str, chunks: List[Dict]) -> bool:
+        """Verify answer is grounded in retrieved chunks using keyword overlap."""
+        
+        if not answer or len(answer) < 10:
+            return True
+        
+        # Common hallucination patterns
+        hallucination_patterns = [
+            "i'm sorry",
+            "i am an ai",
+            "language model",
+            "i don't have access",
+            "general knowledge",
+            "typically",
+            "usually",
+            "in general",
+            "commonly"
+        ]
+        
+        answer_lower = answer.lower()
+        
+        # Check for hallucination patterns
+        for pattern in hallucination_patterns:
+            if pattern in answer_lower:
+                return False
+        
+        # Extract content words from answer (ignore citations)
+        answer_clean = re.sub(r'\[Source:.*?\]', '', answer)
+        answer_words = set(re.findall(r'\b\w{4,}\b', answer_clean.lower()))
+        
+        # Extract words from chunks
+        chunk_words = set()
+        for chunk in chunks:
+            words = re.findall(r'\b\w{4,}\b', chunk['text'].lower())
+            chunk_words.update(words)
+        
+        # Calculate overlap
+        if not answer_words:
+            return True
+        
+        overlap = len(answer_words & chunk_words) / len(answer_words)
+        
+        # Require at least 40% keyword overlap
+        return overlap >= 0.4
     
     def test_connectivity(self) -> Dict:
         """Test Ollama connectivity."""

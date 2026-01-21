@@ -284,7 +284,7 @@ def main():
     results = evaluator.evaluate_rag(questions, num_questions=20)
     
     # Save results
-    with open('evaluation_results.json', 'w') as f:
+    with open('answers.json', 'w') as f:
         json.dump(results, f, indent=2)
     
     # Print summary

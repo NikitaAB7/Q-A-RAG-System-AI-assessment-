@@ -74,14 +74,19 @@ class VectorDB:
         logger.info(f"✅ Indexed {len(new_chunks)} chunks")
     
     def retrieve(self, query: str, embeddings_manager, 
-                 top_k: int = 5) -> List[Dict]:
+                 top_k: int = 5,
+                 metadata_filter: Dict = None) -> List[Dict]:
         """Retrieve top-k similar chunks."""
         query_embedding = embeddings_manager.embed_text(query)
         
-        results = self.collection.query(
-            query_embeddings=[query_embedding.tolist()],
-            n_results=top_k
-        )
+        query_kwargs = {
+            "query_embeddings": [query_embedding.tolist()],
+            "n_results": top_k
+        }
+        if metadata_filter:
+            query_kwargs["where"] = metadata_filter
+        
+        results = self.collection.query(**query_kwargs)
         
         retrieved = []
         for i, (doc_id, distance, text, metadata) in enumerate(zip(

@@ -20,10 +20,11 @@ class ComplianceRetriever:
     
     def retrieve_with_confidence(self, query: str, 
                                  top_k: int = 5,
-                                 score_threshold: float = 0.1) -> Dict:
+                                 score_threshold: float = 0.1,
+                                 metadata_filter: Dict = None) -> Dict:
         """Retrieve chunks with confidence metrics."""
         
-        chunks = self.vector_db.retrieve(query, self.embeddings, top_k)
+        chunks = self.vector_db.retrieve(query, self.embeddings, top_k, metadata_filter=metadata_filter)
         
         confident_chunks = [c for c in chunks if c['score'] >= score_threshold]
         
@@ -55,10 +56,11 @@ class ComplianceRetriever:
                         top_k: int = 5,
                         dense_weight: float = 0.6,
                         sparse_weight: float = 0.4,
-                        score_threshold: float = 0.1) -> Dict:
+                        score_threshold: float = 0.1,
+                        metadata_filter: Dict = None) -> Dict:
         """Retrieve using hybrid (dense + BM25) approach."""
 
-        dense_results = self.vector_db.retrieve(query, self.embeddings, top_k)
+        dense_results = self.vector_db.retrieve(query, self.embeddings, top_k, metadata_filter=metadata_filter)
         dense_dict = {str(r['chunk_id']): r['score'] for r in dense_results}
 
         dense_scores = list(dense_dict.values())
@@ -70,7 +72,7 @@ class ComplianceRetriever:
                     for cid, score in dense_dict.items()
                 }
 
-        sparse_results = self.bm25_manager.retrieve(query, top_k)
+        sparse_results = self.bm25_manager.retrieve(query, top_k, metadata_filter=metadata_filter)
         sparse_dict = {str(r['chunk_id']): r['score'] for r in sparse_results}
 
         sparse_scores = list(sparse_dict.values())
@@ -129,7 +131,8 @@ class ComplianceRetriever:
                                 dense_weight: float = 0.6,
                                 sparse_weight: float = 0.4,
                                 score_threshold: float = 0.1,
-                                rerank_top_k: int = 50) -> Dict:
+                                rerank_top_k: int = 50,
+                                metadata_filter: Dict = None) -> Dict:
         """Retrieve with hybrid search + cross-encoder reranking."""
 
         initial_results = self.retrieve_hybrid(
@@ -137,7 +140,8 @@ class ComplianceRetriever:
             top_k=rerank_top_k,
             dense_weight=dense_weight,
             sparse_weight=sparse_weight,
-            score_threshold=0.0
+            score_threshold=0.0,
+            metadata_filter=metadata_filter
         )
 
         chunks = initial_results['chunks']

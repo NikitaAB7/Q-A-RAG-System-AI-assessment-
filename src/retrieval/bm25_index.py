@@ -56,7 +56,7 @@ class BM25IndexManager:
             }, f)
         logger.info(f"✅ Saved BM25 index to {self.index_path}")
     
-    def retrieve(self, query: str, top_k: int = 5) -> List[Dict]:
+    def retrieve(self, query: str, top_k: int = 5, metadata_filter: Dict = None) -> List[Dict]:
         """Retrieve chunks using BM25 scoring."""
         if not self.bm25 or not self.chunks:
             logger.warning("BM25 index not initialized")
@@ -74,6 +74,22 @@ class BM25IndexManager:
         results = []
         for rank, idx in enumerate(top_indices, 1):
             chunk = self.chunks[idx]
+            if metadata_filter:
+                is_match = True
+                for key, value in metadata_filter.items():
+                    if key not in chunk:
+                        is_match = False
+                        break
+                    if isinstance(value, list):
+                        if chunk[key] not in value:
+                            is_match = False
+                            break
+                    else:
+                        if str(chunk[key]) != str(value):
+                            is_match = False
+                            break
+                if not is_match:
+                    continue
             results.append({
                 'rank': rank,
                 'chunk_id': str(chunk['chunk_id']),
