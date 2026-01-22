@@ -536,10 +536,3 @@ EMBEDDING_DEVICE=cpu
 
 MIT License
 
----
-
-**Built for FInsharpe Assessment - January 2026**
-
-**System Status:** ✅ Production Ready  
-**Author:** [Your Name]  
-**Contact:** [Your Email]
