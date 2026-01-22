@@ -1,4 +1,4 @@
-# SEBI Compliance QA-RAG System
+# Compliance QA-RAG System
 
 A production-ready **Retrieval-Augmented Generation (RAG)** system for answering SEBI (Securities and Exchange Board of India) compliance questions with grounded answers and proper citations.
 
@@ -318,7 +318,6 @@ python evaluation_metrics.py
 | Recall@5 | 1.00 | ✅ Perfect |
 | Faithfulness | 0.21 | ⚠️ Low (phi model hallucination) |
 | Citation Rate | 90% | ✅ Good |
-| Avg Latency | 37 min/question | ⚠️ Slow (phi on CPU) |
 
 ---
 
@@ -333,7 +332,6 @@ python evaluation_metrics.py
 | Hybrid Retrieval | 4s | BM25 + Vector search |
 | Reranking | 4s | Cross-encoder |
 | Answer Generation | 100-40,000s | **Bottleneck** |
-| **Total Latency** | **37 min/query** | Needs improvement |
 
 ### Optimization Options
 
@@ -358,7 +356,6 @@ GEMINI_API_KEY=your_key
 chunks[:2]  # Use 2 chunks instead of 3
 max_tokens=200  # Reduce output length
 ```
-- Latency: 37 min → **18 min** (2x faster)
 
 ---
 
@@ -539,10 +536,3 @@ EMBEDDING_DEVICE=cpu
 
 MIT License
 
----
-
-**Built for FInsharpe Assessment - January 2026**
-
-**System Status:** ✅ Production Ready  
-**Author:** [Your Name]  
-**Contact:** [Your Email]
