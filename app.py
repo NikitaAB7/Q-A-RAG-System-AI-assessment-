@@ -1,107 +1,128 @@
-# app.py (Updated for Gemini)
-
-import json
+import streamlit as st
+from typing import Dict
 from src.indexing.embeddings import EmbeddingManager
-from src.indexing.vector_db import VectorDB
+from src.retrieval.vector_db import VectorDB
 from src.retrieval.retriever import ComplianceRetriever
 from src.generation.answer_generator import GroundedAnswerGenerator
 
-def main():
-    print("🚀 Initializing Compliance Q&A System with Gemini...\n")
-    
-    # Initialize components
-    embeddings = EmbeddingManager()
-    vector_db = VectorDB()
-    vector_db.create_collection()
-    
-    retriever = ComplianceRetriever(vector_db, embeddings)
-    
-    # Initialize Gemini
-    try:
-        generator = GroundedAnswerGenerator(model_name="gemini-1.5-flash")
-        connectivity = generator.test_connectivity()
-        print(f"✅ {connectivity['message']}\n")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return
-    
-    print("="*80)
-    print("COMPLIANCE Q&A SYSTEM (Powered by Google Gemini)")
-    print("="*80)
-    print("\nAsk your SEBI compliance questions")
-    print("(Type 'exit' to quit, 'eval' to run evaluation)\n")
-    
-    results = []
-    
-    while True:
-        query = input("Q: ").strip()
-        
-        if query.lower() == 'exit':
-            break
-        
-        if query.lower() == 'eval':
-            run_evaluation(retriever, generator, results)
-            continue
-        
-        if not query:
-            continue
-        
-        print("\n⏳ Processing...\n")
-        
-        # Retrieve context
-        retrieved = retriever.retrieve_with_confidence(query, top_k=5)
-        
-        # Generate answer
-        result = generator.generate_answer(query, retrieved)
-        
-        # Store for later evaluation
-        results.append({
-            'question': query,
-            'answer': result['answer'],
-            'citations': result['citations'],
-            'retrieved_chunks': result['retrieved_chunks'],
-            'model': result['model'],
-            'status': result['status']
-        })
-        
-        # Display results
-        print(f"📌 Confidence: {result['confidence'].upper()}")
-        print(f"📊 Status: {result['status']}\n")
-        print("─" * 80)
-        print(f"ANSWER:\n{result['answer']}\n")
-        print("─" * 80)
-        
-        if result['citations']:
-            print("\n📚 CITATIONS:")
-            for i, cite in enumerate(result['citations'], 1):
-                print(f"   {i}. {cite['doc_name']}, Page {cite['page']}, Chunk {cite['chunk_id']}")
-        else:
-            print("\n📚 No citations (answer based on context but not explicitly sourced)")
-        
-        print("\n" + "="*80 + "\n")
-    
-    # Save results
-    if results:
-        with open('answers.json', 'w') as f:
-            json.dump(results, f, indent=2)
-        print(f"\n✅ Saved {len(results)} Q&A results to answers.json")
 
-def run_evaluation(retriever, generator, results):
-    """Run evaluation on collected results."""
-    print("\n📊 RUNNING EVALUATION...\n")
-    
-    # Load test questions
-    with open('questions.json') as f:
-        test_questions = json.load(f)
-    
-    for q in test_questions[:5]:  # Test first 5
-        retrieved = retriever.retrieve_with_confidence(q['question'], top_k=5)
-        result = generator.generate_answer(q['question'], retrieved)
-        
-        print(f"Q: {q['question']}")
-        print(f"Status: {result['status']}")
-        print(f"Citations: {len(result['citations'])}")
-        print("---")
+st.set_page_config(
+    page_title="SEBI Compliance QA",
+    page_icon="📘",
+    layout="wide"
+)
+
+
+@st.cache_resource(show_spinner=True)
+def load_components():
+    embeddings = EmbeddingManager()
+    vector_db = VectorDB(db_path="./chromadb")
+    vector_db.create_collection("compliance_docs")
+    retriever = ComplianceRetriever(vector_db, embeddings)
+    generator = GroundedAnswerGenerator()
+    return retriever, generator
+
+
+def render_citations(citations):
+    if not citations:
+        st.info("No explicit citations detected. The answer may be grounded but did not include citation tags.")
+        return
+
+    for i, cite in enumerate(citations, 1):
+        st.write(f"{i}. {cite['doc_name']} — Page {cite['page']}, Chunk {cite['chunk_id']}")
+
+
+def render_chunks(chunks):
+    if not chunks:
+        st.warning("No chunks retrieved. Try a different query or re-index documents.")
+        return
+
+    for i, chunk in enumerate(chunks, 1):
+        score = chunk.get('rerank_score', chunk.get('hybrid_score', chunk.get('score', 0)))
+        section = chunk.get('section', '')
+        subsection = chunk.get('subsection', '')
+        location = section or 'N/A'
+        if subsection:
+            location = f"{location} → {subsection}"
+
+        with st.expander(f"Chunk {i}: {chunk['doc_name']} (Page {chunk['page']}) — Score {score:.3f}"):
+            st.write(f"Location: {location}")
+            st.write(chunk['text'])
+
+
+def main():
+    st.title("📘 SEBI Compliance RAG Assistant")
+    st.write("Ask compliance questions and get grounded answers with citations.")
+
+    with st.sidebar:
+        st.header("Query Settings")
+        top_k = st.slider("Top K", min_value=3, max_value=10, value=5)
+        rerank_top_k = st.slider("Rerank Candidates", min_value=10, max_value=100, value=50)
+        dense_weight = st.slider("Dense Weight", 0.0, 1.0, 0.6, 0.05)
+        sparse_weight = st.slider("Sparse Weight", 0.0, 1.0, 0.4, 0.05)
+        score_threshold = st.slider("Score Threshold", 0.0, 1.0, 0.1, 0.05)
+        max_tokens = st.slider("Max Answer Tokens", 100, 600, 300, 50)
+        doc_filter = st.text_input("Filter by Document (optional)")
+        clear_history = st.button("Clear History")
+
+    if clear_history:
+        st.session_state.pop("history", None)
+
+    query = st.text_area("Your question", placeholder="Ask a SEBI compliance question...")
+    ask = st.button("Ask")
+
+    if ask and query.strip():
+        with st.spinner("Retrieving context and generating answer..."):
+            retriever, generator = load_components()
+
+            metadata_filter = None
+            if doc_filter.strip():
+                metadata_filter = {"doc_name": doc_filter.strip()}
+
+            retrieved = retriever.retrieve_with_reranking(
+                query,
+                top_k=top_k,
+                dense_weight=dense_weight,
+                sparse_weight=sparse_weight,
+                score_threshold=score_threshold,
+                rerank_top_k=rerank_top_k,
+                metadata_filter=metadata_filter
+            )
+
+            result = generator.generate_answer(query, retrieved, max_tokens=max_tokens)
+
+        st.subheader("Answer")
+        st.write(result['answer'])
+
+        st.subheader("Status")
+        st.write(f"Confidence: **{result['confidence']}**")
+        st.write(f"Status: **{result['status']}**")
+        st.write(f"Model: **{result['model']}**")
+
+        st.subheader("Citations")
+        render_citations(result['citations'])
+
+        st.subheader("Retrieved Chunks")
+        render_chunks(result['retrieved_chunks'])
+
+        history = st.session_state.get("history", [])
+        history.append({
+            "question": query,
+            "answer": result['answer'],
+            "citations": result['citations'],
+            "confidence": result['confidence'],
+            "status": result['status']
+        })
+        st.session_state["history"] = history
+
+    if st.session_state.get("history"):
+        st.subheader("History")
+        for i, item in enumerate(reversed(st.session_state["history"]), 1):
+            with st.expander(f"Q{i}: {item['question']}"):
+                st.write(item['answer'])
+                st.write(f"Confidence: {item['confidence']} | Status: {item['status']}")
+                render_citations(item['citations'])
+
 
 if __name__ == "__main__":
     main()
